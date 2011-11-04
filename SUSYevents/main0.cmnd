@@ -1,14 +1,45 @@
-! t tbar production at the LHC
-Beams:idA = 2212       	! First incoming beam is 2212; i.e. a proton
-Beams:idB = 2212
-Beams:eCM = 7000.	! The center of mass energy of colisions
-Top:gg2ttbar = on	! Switch on the process g g -> t tbar
-Top:qqbar2ttbar = on	! On q qbar -> t tbar
-!6:m0 = 175.	  	! Change the top mass, default 171 GeV
-PartonLevel:FSR = off	! Switch off the final-state radiation
-PartonLevel:ISR = off	! Switch off the initial-state radiation
-PartonLevel:MI = off	! Switch off multiple interactions
-HiggsSM:all    	 	! Switch on SM Higgs processes
-Tune:pp = 3
-Random:setSeed = on
-Random:seed = 123456789
+! main22.cmnd
+! This file contains commands to be read in for a Pythia8 run. 
+! Lines not beginning with a letter or digit are comments.
+
+! 1) Settings that could be used in a main program, if desired.
+#Main:numberOfEvents = 10000        ! number of events to generate
+#Main:numberToList = 2              ! number of events to print
+#Main:timesToShow = 20              ! show how far along run is
+Main:showChangedSettings = on      ! print changed flags/modes/parameters
+Main:showAllSettings = off         ! print all flags/modes/parameters
+#Main:showChangedParticleData = off  ! print changed particle and decay data
+#Main:showAllParticleData = off      ! print all particle and decay data
+
+! 2) Beam parameter settings. Values below agree with default ones.
+Beams:idA = 2212                   ! first beam, p = 2212, pbar = -2212
+Beams:idB = 2212                   ! second beam, p = 2212, pbar = -2212
+Beams:eCM = 7000.                 ! CM energy of collision
+
+! 3) Read SLHA spectrum, with or without DECAY tables
+SLHA:file = softsusy.spc  
+#SLHA:file = sps1a.spc       
+#SLHA:file = sps1aWithDecays.spc      
+
+! 4) Process selection 
+SUSY:all = on                      ! Switches on ALL (~400) SUSY processes
+#SUSY:gg2gluinogluino  = on      
+#SUSY:qqbar2gluinogluino  = on
+#SUSY:qg2squarkgluino = on
+#SUSY:gg2squarkantisquark = on
+#SUSY:qqbar2squarkantisquark = on
+#SUSY:qq2squarksquark = on
+#SUSY:qqbar2chi0chi0  = on
+#SUSY:qqbar2chi+-chi0 = on
+#SUSY:qqbar2chi+chi-  = on
+#SUSY:qg2chi0squark = on
+#SUSY:qg2chi+-squark  = on
+! Optionally select only specific sparticle codes in the final state
+#SUSY:idA        = 2000001           ! 0: all
+#SUSY:idB        = 2000001           ! 0: all
+
+! 5) Settings for the event generation process in the Pythia8 library.
+PartonLevel:MI = off               ! no multiple interactions
+PartonLevel:ISR = off              ! no initial-state radiation 
+PartonLevel:FSR = off              ! no final-state radiation
+HadronLevel:Hadronize = off        ! no hadronization

@@ -1,99 +1,42 @@
-#
-# Examples Makefile.
-#
-#                  M. Kirsanov 07.04.2006
-#                     Modified 18.11.2006
-#                     26.03.2008 CLHEP dependency removed
+######################################################################
+# Makefile for building Pythia's ROOT examples.
+# Axel Naumann, 2011-03-03
+######################################################################
 
-SHELL = /bin/sh
-
+# Need this to get SHAREDSUFFIX (e.g. dylib or so)
 -include ../config.mk
--include config.mk
 
-# Location of directories.
-TMPDIR=tmp
-TOPDIR=$(shell \pwd)
-INCDIR=include
-SRCDIR=src
-LIBDIR=lib
-LIBDIRARCH=lib/archive
-BINDIR=bin
+# A few variables used in this Makefile:
+EX           := main
+EXE          := $(addsuffix .exe,$(EX))
+PYTHIA8      ?= $(PWD)/..
+STATICLIB    := $(PYTHIA8)/lib/archive/libpythia8.a
+SHAREDLIB    := $(PYTHIA8)/lib/libpythia8.$(SHAREDSUFFIX)
+DICTCXXFLAGS := -I$(PYTHIA8)/include 
+ROOTCXXFLAGS := $(DICTCXXFLAGS) $(shell root-config --cflags)
 
-# There is no default behaviour, so remind user.
-all:
-	@echo "Usage: for NN = example number: make mainNN"
+# LDFLAGS1 for static library, LDFLAGS2 for shared library
+LDFLAGS1 := $(shell root-config --ldflags --glibs) \
+  -L$(PYTHIA8)/lib/archive -lpythia8 -llhapdfdummy
+LDFLAGS2 := $(shell root-config --ldflags --glibs) \
+  -L$(PYTHIA8)/lib -lpythia8 -llhapdfdummy
 
-# Create an executable for one of the normal test programs
-main0: \
-	../$(LIBDIRARCH)/libpythia8.a
-	@mkdir -p ../$(BINDIR)
-	$(CXX) $(CXXFLAGS) -I../$(INCDIR) $@.cc -o ../$(BINDIR)/$@.exe \
-	-L../$(LIBDIRARCH) -lpythia8 -llhapdfdummy
-	@ln -fs ../$(BINDIR)/$@.exe $@.exe
+# Default target; make examples (but not shared dictionary)
+all: $(EX)
 
-# Create an executable linked to HepMC (if all goes well).
-# Owing to excessive warning output -Wshadow is not used for HepMC.
-ifneq (x$(HEPMCLOCATION),x)
-  main31 main32: \
-	../$(LIBDIRARCH)/libpythia8.a ../$(LIBDIRARCH)/libhepmcinterface.a
-	@mkdir -p ../$(BINDIR)
-	$(CXX) $(CXXFLAGS) -Wno-shadow -I../$(INCDIR) -I$(HEPMCLOCATION)/include \
-	$@.cc -o ../$(BINDIR)/$@.exe \
-	-L../$(LIBDIRARCH) -lpythia8 -llhapdfdummy \
-	-lhepmcinterface \
-	-L$(HEPMCLOCATION)/lib -lHepMC
-	@ln -fs ../$(BINDIR)/$@.exe $@.exe
-else
-  main31 main32:
-	@echo ERROR, this target needs HepMC, variable HEPMCLOCATION
-endif
+# Rule to build main. Needs static PYTHIA 8 library
+main: $(STATICLIB) main.cc
+	$(CXX) $(ROOTCXXFLAGS) $(LDFLAGS1) $@.cc -o $@.exe
 
-# Create an executable that links to LHAPDF
-main41 main42 main43: ../$(LIBDIRARCH)/libpythia8.a
-	@mkdir -p ../$(BINDIR)
-	$(CXX) $(CXXFLAGS) -I../$(INCDIR) $@.cc -o ../$(BINDIR)/$@.exe \
-	-L../$(LIBDIRARCH) -lpythia8 \
-	-L$(LHAPDFLOCATION) $(LHAPDFLIBNAME) \
-	$(FLIBS)
-	@ln -fs ../$(BINDIR)/$@.exe $@.exe
+# Error messages if PYTHIA libraries don't exist
+$(STATICLIB):
+	@echo "Error: PYTHIA 8 archive library must be built"
+	@false
+$(SHAREDLIB):
+	@echo "Error: PYTHIA 8 shared library must be built"
+	@false
 
-# Create an executable that links to Pythia6. This part is obsolete and 
-# only retained, in a watered-down version, for debug purposes.
-# Library created with "gfortran -c pythia64xx.f" (xx = current subversion),
-# followed by "ar cru libpythia6.a pythia64xx.o" (on Linux).
-# You would need to uncomment below and correct pythia6 library path.
-#main51: ../$(LIBDIRARCH)/libpythia8.a
-#	@mkdir -p ../$(BINDIR)
-#	$(CXX) $(CXXFLAGS) -I../$(INCDIR) $@.cc -o ../$(BINDIR)/$@.exe \
-#	-L../$(LIBDIRARCH) -lpythia8 -llhapdfdummy \
-#	-L/directoryoflibpythia6.a -lpythia6 \
-#	$(FLIBS)
-#	@ln -fs ../$(BINDIR)/$@.exe $@.exe
-
-# Create an executable that links to Fastjet
-# Owing to excessive warning output -Wshadow is not used for Fastjet.
-ifneq (x$(FASTJETLOCATION),x)
-  main61: ../$(LIBDIRARCH)/libpythia8.a
-	@mkdir -p ../$(BINDIR)
-    # Note: $(CXXFLAGS) is after Fastjet flags as Fastjet includes
-    #       optimisation/debug flags which may be unwanted (e.g. -g -O2)
-	$(CXX) -I../$(INCDIR) $@.cc \
-	`$(FASTJETLOCATION)/bin/fastjet-config --cxxflags --plugins` \
-	$(CXXFLAGS) -Wno-shadow \
-	-o ../$(BINDIR)/$@.exe \
-	-L../$(LIBDIRARCH) -lpythia8 -llhapdfdummy \
-	-L$(FASTJETLOCATION)/lib \
-	`$(FASTJETLOCATION)/bin/fastjet-config --libs --plugins`
-	@ln -fs ../$(BINDIR)/$@.exe $@.exe
-	@rm -f $@.o
-else
-  main61:
-	@echo ERROR, this target needs Fastjet, variable FASTJETLOCATION
-endif
-
-# Clean up: remove executables and outdated files.
-.PHONY: clean
+# Clean up
 clean:
-	rm -rf ../$(BINDIR)
-	rm -rf *.exe
-	rm -f *~; rm -f \#*; rm -f core*
+	rm -f $(EXE) main.root
+
