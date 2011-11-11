@@ -1,10 +1,15 @@
-######################################################################
-# Makefile for building Pythia's ROOT examples.
-# Axel Naumann, 2011-03-03
-######################################################################
+SHELL = /bin/sh
 
-# Need this to get SHAREDSUFFIX (e.g. dylib or so)
 -include ../config.mk
+-include config.mk
+
+TMPDIR=tmp
+TOPDIR=$(shell \pwd)
+INCDIR=include
+SRCDIR=src
+LIBDIR=lib
+LIBDIRARCH=lib/archive
+BINDIR=bin
 
 # A few variables used in this Makefile:
 EX           := main
@@ -14,6 +19,7 @@ STATICLIB    := $(PYTHIA8)/lib/archive/libpythia8.a
 SHAREDLIB    := $(PYTHIA8)/lib/libpythia8.$(SHAREDSUFFIX)
 DICTCXXFLAGS := -I$(PYTHIA8)/include 
 ROOTCXXFLAGS := $(DICTCXXFLAGS) $(shell root-config --cflags)
+FASTJETLOCATION := /usr/local
 
 # LDFLAGS1 for static library, LDFLAGS2 for shared library
 LDFLAGS1 := $(shell root-config --ldflags --glibs) \
@@ -25,18 +31,23 @@ LDFLAGS2 := $(shell root-config --ldflags --glibs) \
 all: $(EX)
 
 # Rule to build main. Needs static PYTHIA 8 library
-main: $(STATICLIB) main.cc
-	$(CXX) $(ROOTCXXFLAGS) $(LDFLAGS1) $@.cc -o $@.exe
+ifneq (x$(FASTJETLOCATION),x)
+  main: ../$(LIBDIRARCH)/libpythia8.a
+	$(CXX) -I../$(INCDIR) \
+	$(shell root-config --cflags) $(LDFLAGS1) $@.cc \
+	`$(FASTJETLOCATION)/bin/fastjet-config --cxxflags --plugins` \
+	$(CXXFLAGS) -Wno-shadow \
+	-o $@.exe \
+	-L../$(LIBDIRARCH) -lpythia8 -llhapdfdummy \
+	-L$(FASTJETLOCATION)/lib \
+	`$(FASTJETLOCATION)/bin/fastjet-config --libs --plugins`
+	@rm -f $@.o
+else
+  main:
+	@echo ERROR, this target needs Fastjet, variable FASTJETLOCATION
+endif
 
-# Error messages if PYTHIA libraries don't exist
-$(STATICLIB):
-	@echo "Error: PYTHIA 8 archive library must be built"
-	@false
-$(SHAREDLIB):
-	@echo "Error: PYTHIA 8 shared library must be built"
-	@false
-
-# Clean up
 clean:
-	rm -f $(EXE) main.root
+	rm -f $(EXE) *.root
+	rm -f *~; rm -f \#*; rm -f core*
 

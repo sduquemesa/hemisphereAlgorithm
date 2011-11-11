@@ -1,63 +1,133 @@
-#include <iostream> // Input and output
-#include "Pythia.h" // Pythia
+// Stdlib
+#include <iostream>
+
+// Pythia
+#include "Pythia.h" 
+
+// FastJet
+#include "fastjet/PseudoJet.hh"
+#include "fastjet/ClusterSequence.hh"
+#include "fastjet/Selector.hh"
 
 // ROOT
-#include "TH1.h" // for histogramming
-#include "TVirtualPad.h" // for interactive graphics
-#include "TApplication.h" // for interactive graphics
-#include "TFile.h" // for saving file
+#include "TH2.h" // Histogramming
+#include "TVirtualPad.h" // Interactive graphics
+#include "TApplication.h" // Interactive graphics
+#include "TFile.h" // Saving a file
+#include "TMath.h" // Math
+#include "THStack.h"
 
 using namespace Pythia8;
 
+double etaCalc(double theta){
+  return ( -TMath::Log( TMath::Tan( theta/2.0 ) ) );
+}
+
 int main(int argc, char* argv[])
 {
-  // Create the ROOT application environment. 
-  TApplication theApp("hist", &argc, argv);
-
-  int nEvents = 1;
+  // Settings
+  int nEvents = 10000;
 
   // Set up generation
   Pythia pythia; // Declare pythia object
-
-  // pythia.readString("Top:gg2ttbar = on") // Switch process
-  // pythia.init(2212,2212,7000.); // Initialize pp (PDG 2212) with eCM = 7 TeV
   pythia.readFile("main0.cmnd"); // Read file of parameters
   pythia.init(); // Initialize with .cmnd file parameters
 
+  // Create the ROOT application environment. 
+  TApplication theApp("hist", &argc, argv);
+
   // Create file on which histogram(s) can be saved.
-  TFile* outFile = new TFile("hist.root", "RECREATE");
+  //TFile* outFile = new TFile("lego.root", "RECREATE");
 
   // Book histogram.
-  TH1F *phi = new TH1F("phi","azimuthal angle", 100, 0, 6.28);
+  THStack *hs = new THStack("hs","");
+  TH2F *lego = new TH2F("lego","lego plot of dijet event", 50, -3.141593, 3.141593, 50, -4, 4);
+  TH2F *mET = new TH2F("mET","missing ET", 50, -3.141593, 3.141593, 50, -4, 4);
 
-  // Show settings
-  //pythia.settings.listAll();
-  //pythia.settings.listChanged();    // Show changed settings
-  //pythia.particleData.listAll();
-  //pythia.particleData.listChanged();    // Show changed particle data
+  // Fastjet analysis - select algorithm and parameters
+  double Rparam = 0.5;
+  fastjet::Strategy               strategy = fastjet::Best;
+  fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
+  fastjet::JetDefinition         *jetDef = NULL;
+  jetDef = new fastjet::JetDefinition(fastjet::kt_algorithm, Rparam,
+                                      recombScheme, strategy);
+
+  // Fastjet input
+  std::vector <fastjet::PseudoJet> fjInputs;
+
 
   for ( int iEvent = 0; iEvent < nEvents; iEvent++ ) { // Event loop
-    if (!pythia.next()) continue;  // Generate an event. Fill event record.
-    pythia.event.list(false,true);  // Print contents of event record (bool showScaleAndVertex, bool showMothersAndDaughters = false)
+    if (!pythia.next()) continue;
+    if (iEvent == 0) pythia.event.list();  // Print first event
+
+    // Reset Fastjet input
+    fjInputs.resize(0);
+
+    // Reset Histogram input
+    lego->Reset();
+    mET->Reset();
+
+    // Keep track of missing ET
+    Vec4 missingETvec;
 
    for ( int i = 0; i < pythia.event.size(); i++ ){ // Particle loop
-     //cout << "i = " << i << ", pT = " << pythia.event[i].pT() << endl;
-     //if ( pythia.event[i].id() == 6 ) fprint("do something here");
-     phi->Fill( pythia.event[i].phi() );
+
+     if (!pythia.event[i].isFinal()) {missingETvec += pythia.event[i].p(); continue;}      // Final state particles
+
+     // No neutrinos
+     if (pythia.event[i].idAbs() == 12 || pythia.event[i].idAbs() == 14 || pythia.event[i].idAbs() == 16) {missingETvec += pythia.event[i].p(); continue;}
+
+     // No neutralinos
+     if (pythia.event[i].idAbs() == 1000012 || pythia.event[i].idAbs() == 1000014 || pythia.event[i].idAbs() == 1000016) {missingETvec += pythia.event[i].p(); continue;}
+
+     // Add undesired particles here
+
+      // Store as input to Fastjet
+      fjInputs.push_back( fastjet::PseudoJet (pythia.event[i].px(), pythia.event[i].py(), pythia.event[i].pz(), pythia.event[i].e() ) );
+    
+   } // End particle loop
+
+   // Run Fastjet algorithm 
+   vector <fastjet::PseudoJet> inclusiveJets, selectedJets, sortedJets;
+   fastjet::ClusterSequence clustSeq(fjInputs, *jetDef);
+   
+   // For the first event, print the FastJet details
+   if (iEvent == 0) {
+     cout << "\nRan " << jetDef->description() << endl;
+     cout << "Strategy adopted by FastJet was " << clustSeq.strategy_string() << endl << endl;
    }
 
-  }
+   // Extract dijets and unclustered particles
+   inclusiveJets = clustSeq.inclusive_jets();
+   fastjet::Selector select_pt = fastjet::SelectorPtMin(50.0);
+   selectedJets = select_pt(inclusiveJets);
+   selectedJets = sorted_by_pt(selectedJets);
+
+   if ( selectedJets.size() == 2 ){
+
+     if ( selectedJets[0].eta() > 2.5 ) continue;
+     
+     for ( unsigned int j = 0; j < selectedJets.size(); j++ ){
+       // Add inputs to lego plot
+       lego->Fill(selectedJets[j].phi_std(), selectedJets[j].eta(), selectedJets[j].perp());
+     }
+
+     mET->Fill(missingETvec.phi(), etaCalc(missingETvec.theta()), missingETvec.pT());
+     mET->SetFillColor(kWhite);
+     hs->Add(mET);
+
+     lego->SetFillColor(kRed);
+     lego->GetXaxis()->SetTitle("#phi");
+     lego->GetYaxis()->SetTitle("#eta");
+     lego->GetZaxis()->SetTitle("p_{T}");
+     hs->Add(lego);
+     hs->Draw("LEGO1");
+     gPad->WaitPrimitive();
+   } 
+
+  } // End event loop
 
   //pythia.statistics(); // Get statistics of the program run
-  
-  // Show histogram. Possibility to close it.
-  phi->Draw();
-  std::cout << "\nDouble click on the histogram window to quit.\n";
-  gPad->WaitPrimitive();
-
-  // Save histogram on file and close file.
-  phi->Write();
-  delete outFile;
 
   return 0; // End main program with error-free return
 }
