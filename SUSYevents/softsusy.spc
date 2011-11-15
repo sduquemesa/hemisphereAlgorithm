@@ -149,3 +149,6 @@ Block ae Q= 4.64231969e+02
   1  1     0.00000000e+00   # Ae(Q)MSSM DRbar
   2  2     0.00000000e+00   # Amu(Q)MSSM DRbar
   3  3    -2.56146632e+02   # Atau(Q)MSSM DRbar
+DECAY   1000022     3.23641924E-14   # chi_10
+     0.50000000E+00    3          12       -11        11   # BR(chi_10 -> nu_1 e+ e-)
+     0.50000000E+00    3          14       -13        13   # BR(chi_10 -> nu_2 mu+ mu-)

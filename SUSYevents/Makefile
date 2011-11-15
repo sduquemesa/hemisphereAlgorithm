@@ -12,7 +12,7 @@ LIBDIRARCH=lib/archive
 BINDIR=bin
 
 # A few variables used in this Makefile:
-EX           := main
+EX           := main Rparity
 EXE          := $(addsuffix .exe,$(EX))
 PYTHIA8      ?= $(PWD)/..
 STATICLIB    := $(PYTHIA8)/lib/archive/libpythia8.a
@@ -32,7 +32,7 @@ all: $(EX)
 
 # Rule to build main. Needs static PYTHIA 8 library
 ifneq (x$(FASTJETLOCATION),x)
-  main: ../$(LIBDIRARCH)/libpythia8.a
+  main Rparity: ../$(LIBDIRARCH)/libpythia8.a
 	$(CXX) -I../$(INCDIR) \
 	$(shell root-config --cflags) $(LDFLAGS1) $@.cc \
 	`$(FASTJETLOCATION)/bin/fastjet-config --cxxflags --plugins` \

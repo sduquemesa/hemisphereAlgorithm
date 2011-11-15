@@ -15,18 +15,19 @@ Beams:idB = 2212                      ! second beam, p = 2212, pbar = -2212
 Beams:eCM = 7000.                     ! CM energy of collision
 
 ! 3) Read SLHA spectrum, with or without DECAY tables
-#SLHA:file = softsusy.spc 
-SLHA:file = SPheno.spc
-SLHA:useDecayTable = off		      ! Read SLHA decay table from file 
+SLHA:file = softsusy.spc 
+#SLHA:file = SPheno.spc
+#SLHA:file = rpvHouchesOutput
+SLHA:useDecayTable = on		      ! Read SLHA decay table from file 
 
 ! 4) Process selection 
-#SUSY:all = on			      ! Switches on ALL (~400) SUSY processes
-SUSY:gg2gluinogluino  = on      
-SUSY:qqbar2gluinogluino  = on
+SUSY:all = on			      ! Switches on ALL (~400) SUSY processes
+#SUSY:gg2gluinogluino  = on      
+#SUSY:qqbar2gluinogluino  = on
 #SUSY:qg2squarkgluino = on
-SUSY:gg2squarkantisquark = on
-SUSY:qqbar2squarkantisquark = on
-SUSY:qq2squarksquark = on
+#SUSY:gg2squarkantisquark = on
+#SUSY:qqbar2squarkantisquark = on
+#SUSY:qq2squarksquark = on
 #SUSY:qqbar2chi0chi0  = on
 #SUSY:qqbar2chi+-chi0 = on
 #SUSY:qqbar2chi+chi-  = on
@@ -40,4 +41,7 @@ SUSY:qq2squarksquark = on
 PartonLevel:MI = off                   ! no multiple interactions
 PartonLevel:ISR = off                  ! no initial-state radiation 
 PartonLevel:FSR = off                  ! no final-state radiation
-HadronLevel:Hadronize = off             ! no hadronization
+HadronLevel:Hadronize = on             ! hadronization
+
+Random:setSeed = on
+Radom:sed = 12345
