@@ -54,8 +54,13 @@ int main(int argc, char * argv[])
   TApplication theApp("hist", &argc, argv);
 
   // Set up root Histograms
-  TH1D *he = new TH1D("he","e pT distribution",100,0,100);
-  TH1D *hmu = new TH1D("hmu","mu pT distribution",100,0,100);
+  TH1D *he1 = new TH1D("he1","",100,0,130);
+  TH1D *he2 = new TH1D("he2","",100,0,130);
+  TH1D *he3 = new TH1D("he3","e pT distribution",100,0,130);
+  TH1D *hmu1 = new TH1D("hmu1","",100,0,130);
+  TH1D *hmu2 = new TH1D("hmu2","",100,0,130);
+  TH1D *hmu3 = new TH1D("hmu3","mu pT distribution",100,0,130);
+
   
   for ( int iEvent = 0; iEvent < nEvents; iEvent++ ) { // Event loop
     
@@ -102,8 +107,10 @@ int main(int argc, char * argv[])
       }
       if ( I0_rel > 0.15 || I1_rel > 0.15 ) continue;
 
-      he->Fill(pythia.event[iE[0]].pT());
-      hmu->Fill(pythia.event[iMu[0]].pT());
+      he2->Fill(pythia.event[iE[0]].pT());
+      hmu2->Fill(pythia.event[iMu[0]].pT());
+      he3->Fill(pythia.event[iE[0]].pT());
+      hmu3->Fill(pythia.event[iMu[0]].pT());
     }
     
 
@@ -124,8 +131,10 @@ int main(int argc, char * argv[])
       }
       if ( I0_rel > 0.15 || I1_rel > 0.15 ) continue;
 
-      hmu->Fill(pythia.event[iMu[0]].pT());
-      hmu->Fill(pythia.event[iMu[1]].pT());
+      hmu1->Fill(pythia.event[iMu[0]].pT());
+      hmu1->Fill(pythia.event[iMu[1]].pT());
+      hmu3->Fill(pythia.event[iMu[0]].pT());
+      hmu3->Fill(pythia.event[iMu[1]].pT());
     }
     
     if ( iE.size() == 2 ) { // e-e trigger
@@ -144,15 +153,25 @@ int main(int argc, char * argv[])
 		    pythia.event[i].phi()) < 0.4 ) { I1_rel += (pythia.event[i].pT() + pythia.event[i].eT()) / pythia.event[iE[1]].pT(); } // e I_rel calculation
       }
       if ( I0_rel > 0.15 || I1_rel > 0.15 ) continue;
-      he->Fill(pythia.event[iE[0]].pT());
-      he->Fill(pythia.event[iE[1]].pT());
+      he1->Fill(pythia.event[iE[0]].pT());
+      he1->Fill(pythia.event[iE[1]].pT());
+      he3->Fill(pythia.event[iE[0]].pT());
+      he3->Fill(pythia.event[iE[1]].pT());
     }
     
   } // End event loop
 
-  he->Draw();
+  he1->SetLineColor(2);
+  he2->SetLineColor(4);
+  he3->Draw();
+  he1->Draw("SAME");
+  he2->Draw("SAME");
   gPad->WaitPrimitive();
-  hmu->Draw();
+  hmu1->SetLineColor(2);
+  hmu2->SetLineColor(4);
+  hmu3->Draw();
+  hmu1->Draw("SAME");
+  hmu2->Draw("SAME");
   gPad->WaitPrimitive();
   
   return 0; // End main program with error-free return
