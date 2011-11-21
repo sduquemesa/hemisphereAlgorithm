@@ -1,6 +1,6 @@
 ! This file contains commands to be read in for a Pythia8 run. 
 
-! 1) Settings that could be used in a main program, if desired.
+! Settings that could be used in a main program, if desired.
 #Main:numberOfEvents = 10000          ! number of events to generate
 #Main:numberToList = 2                ! number of events to print
 #Main:timesToShow = 20                ! show how far along run is
@@ -9,39 +9,24 @@ Main:showAllSettings = off            ! print all flags/modes/parameters
 Main:showChangedParticleData = off    ! print changed particle and decay data
 Main:showAllParticleData = off        ! print all particle and decay data
 
-! 2) Beam parameter settings. Values below agree with default ones.
+! Beam parameter settings. Values below agree with default ones.
 Beams:idA = 2212                      ! first beam, p = 2212, pbar = -2212
 Beams:idB = 2212                      ! second beam, p = 2212, pbar = -2212
-Beams:eCM = 7000.                     ! CM energy of collision
+Beams:eCM = 7000.                    ! CM energy of collision
 
-! 3) Read SLHA spectrum, with or without DECAY tables
-SLHA:file = softsusy.spc 
-#SLHA:file = SPheno.spc
-#SLHA:file = rpvHouchesOutput
+! Read SLHA spectrum, with or without DECAY tables
+SLHA:file = softsusy.spc
 SLHA:useDecayTable = on		      ! Read SLHA decay table from file 
 
-! 4) Process selection 
+! Process selection 
 SUSY:all = on			      ! Switches on ALL (~400) SUSY processes
-#SUSY:gg2gluinogluino  = on      
-#SUSY:qqbar2gluinogluino  = on
-#SUSY:qg2squarkgluino = on
-#SUSY:gg2squarkantisquark = on
-#SUSY:qqbar2squarkantisquark = on
-#SUSY:qq2squarksquark = on
-#SUSY:qqbar2chi0chi0  = on
-#SUSY:qqbar2chi+-chi0 = on
-#SUSY:qqbar2chi+chi-  = on
-#SUSY:qg2chi0squark = on
-#SUSY:qg2chi+-squark  = on
-! Optionally select only specific sparticle codes in the final state
-#SUSY:idA        = 2000001             ! 0: all
-#SUSY:idB        = 2000001             ! 0: all
 
-! 5) Settings for the event generation process in the Pythia8 library.
+! Settings for the event generation process in the Pythia8 library.
 PartonLevel:MI = off                   ! no multiple interactions
 PartonLevel:ISR = off                  ! no initial-state radiation 
 PartonLevel:FSR = off                  ! no final-state radiation
-HadronLevel:Hadronize = on             ! hadronization
+HadronLevel:Hadronize = off             ! hadronization
 
+! Seed for the event generation
 Random:setSeed = on
 Radom:sed = 12345

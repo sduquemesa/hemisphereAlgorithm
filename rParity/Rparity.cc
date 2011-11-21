@@ -1,5 +1,6 @@
 #include "stdio.h"
 #include "math.h"
+#include "stdlib.h"
 
 // Pythia
 #include "Pythia.h"
@@ -39,7 +40,10 @@ double deltaR(double p1eta, double p1phi, double p2eta, double p2phi){
 int main(int argc, char * argv[])
 {
   // Settings
-  int nEvents = 100000;
+  int nEvents;
+  if ( argc == 1 ) nEvents = atoi(argv[0]);
+  else nEvents = 1000;
+
   vector<int> iMu; // Muon event storage
   vector<int> iE;  // Electron event storage
   double I0_rel;
@@ -49,18 +53,6 @@ int main(int argc, char * argv[])
   Pythia pythia; // Declare pythia object
   pythia.readFile("main0.cmnd"); // Read file of parameters
   pythia.init(); // Initialize with .cmnd file parameters
-
-  // Create the ROOT application environment. 
-  TApplication theApp("hist", &argc, argv);
-
-  // Set up root Histograms
-  TH1D *he1 = new TH1D("he1","",100,0,130);
-  TH1D *he2 = new TH1D("he2","",100,0,130);
-  TH1D *he3 = new TH1D("he3","e pT distribution",100,0,130);
-  TH1D *hmu1 = new TH1D("hmu1","",100,0,130);
-  TH1D *hmu2 = new TH1D("hmu2","",100,0,130);
-  TH1D *hmu3 = new TH1D("hmu3","mu pT distribution",100,0,130);
-
   
   for ( int iEvent = 0; iEvent < nEvents; iEvent++ ) { // Event loop
     
@@ -75,11 +67,12 @@ int main(int argc, char * argv[])
     
     for ( int i = 0; i < pythia.event.size(); ++i ){ // Particle loop
       
+      if ( !(pythia.event[i].isFinal()) ) continue;
+
       if ( pythia.event[i].pT() < 8.0 ) continue; // Cut: pT >= 8 GeV/c
       if ( TMath::Abs( pythia.event[i].eta() ) >= 2.1 ) continue; // Cut: |eta| < 2.1
       
       if ( pythia.event[i].id() == 11 ) { 
-	if ( pythia.event[pythia.event[i].mother1()].idAbs() == 24 ) continue; // Avoid electron from W decay
 	if ( pythia.event[i].hasVertex() ) continue; // Cut: Particles originated on primary vertex only
 	iE.push_back(i);
       }
