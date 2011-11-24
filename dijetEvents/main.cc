@@ -19,6 +19,10 @@
 
 using namespace Pythia8;
 
+double theta(double eta){
+  return 2*TMath::ATan( TMath::Exp(-1*eta) );
+}
+
 double etaCalc(double theta){
   return ( -TMath::Log( TMath::Tan( theta/2.0 ) ) );
 }
@@ -41,8 +45,8 @@ int main(int argc, char* argv[])
 
   // Book histogram.
   THStack *hs = new THStack("hs","");
-  TH2F *lego = new TH2F("lego","lego plot of dijet event", 50, -3.141593, 3.141593, 50, -4, 4);
-  TH2F *mET = new TH2F("mET","missing ET", 50, -3.141593, 3.141593, 50, -4, 4);
+  TH2F *lego = new TH2F("lego","lego plot of dijet event", 50, -3.141593, 3.141593, 50, -3.141593, 3.141593);
+  TH2F *mET = new TH2F("mET","missing ET", 50, -3.141593, 3.141593, 50, -3.141593, 3.141593);
 
   // Fastjet analysis - select algorithm and parameters
   double Rparam = 0.5;
@@ -68,19 +72,20 @@ int main(int argc, char* argv[])
     mET->Reset();
 
     // Keep track of missing ET
-    Vec4 missingETvec;
+    Vec4 MET;
 
    for ( int i = 0; i < pythia.event.size(); i++ ){ // Particle loop
 
-     if (!pythia.event[i].isFinal()) {missingETvec += pythia.event[i].p(); continue;}      // Final state particles
+     if (!pythia.event[i].isFinal()) continue;      // Final state particles
 
      // No neutrinos
-     if (pythia.event[i].idAbs() == 12 || pythia.event[i].idAbs() == 14 || pythia.event[i].idAbs() == 16) {missingETvec += pythia.event[i].p(); continue;}
+     if (pythia.event[i].idAbs() == 12 || pythia.event[i].idAbs() == 14 || pythia.event[i].idAbs() == 16) {MET += pythia.event[i].p(); continue;}
 
      // No neutralinos
-     if (pythia.event[i].idAbs() == 1000012 || pythia.event[i].idAbs() == 1000014 || pythia.event[i].idAbs() == 1000016) {missingETvec += pythia.event[i].p(); continue;}
+     if (pythia.event[i].idAbs() == 1000012 || pythia.event[i].idAbs() == 1000014 || pythia.event[i].idAbs() == 1000016) {MET += pythia.event[i].p(); continue;}
 
-     // Add undesired particles here
+     // No gravitinos
+     if ( pythia.event[i].id() == 1000039 ){MET+=pythia.event[i].p(); continue;}
 
       // Store as input to Fastjet
       fjInputs.push_back( fastjet::PseudoJet (pythia.event[i].px(), pythia.event[i].py(), pythia.event[i].pz(), pythia.event[i].e() ) );
@@ -105,23 +110,23 @@ int main(int argc, char* argv[])
 
    if ( selectedJets.size() == 2 ){
 
-     if ( selectedJets[0].eta() > 2.5 ) continue;
+     if ( TMath::Abs( selectedJets[0].eta() ) > 2.5 ) continue;
      
      for ( unsigned int j = 0; j < selectedJets.size(); j++ ){
        // Add inputs to lego plot
-       lego->Fill(selectedJets[j].phi_std(), selectedJets[j].eta(), selectedJets[j].perp());
+       lego->Fill(selectedJets[j].phi_std(), theta(selectedJets[j].eta()), selectedJets[j].perp());
      }
 
-     mET->Fill(missingETvec.phi(), etaCalc(missingETvec.theta()), missingETvec.pT());
+     mET->Fill(MET.phi(), etaCalc(MET.theta()), MET.pT());
      mET->SetFillColor(kWhite);
      hs->Add(mET);
 
      lego->SetFillColor(kRed);
      lego->GetXaxis()->SetTitle("#phi");
-     lego->GetYaxis()->SetTitle("#eta");
+     lego->GetYaxis()->SetTitle("#theta");
      lego->GetZaxis()->SetTitle("p_{T}");
      hs->Add(lego);
-     hs->Draw("LEGO1");
+     lego->Draw("LEGO1");
      gPad->WaitPrimitive();
    } 
 
