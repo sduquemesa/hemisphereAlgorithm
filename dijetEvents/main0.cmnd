@@ -16,17 +16,22 @@ Beams:eCM = 7000.                    ! CM energy of collision
 
 ! Read SLHA spectrum, with or without DECAY tables
 SLHA:file = softsusy.spc
-SLHA:useDecayTable = on		      ! Read SLHA decay table from file 
+SLHA:useDecayTable = off		      ! Read SLHA decay table from file 
 
 ! Process selection 
-SUSY:all = on			      ! Switches on ALL (~400) SUSY processes
+!SUSY:all = on			      ! Switches on ALL (~400) SUSY processes
+!SUSY:gg2squarkantisquark = on
+!SUSY:qqbar2squarkantisquark = on
+SUSY:qq2squarksquark = on
+SUSY:gg2gluinogluino = on
+SUSY:qqbar2gluinogluino = on
 
 ! Settings for the event generation process in the Pythia8 library.
-PartonLevel:MI = off                   ! no multiple interactions
-PartonLevel:ISR = off                  ! no initial-state radiation 
-PartonLevel:FSR = off                  ! no final-state radiation
-HadronLevel:Hadronize = off             ! hadronization
+PartonLevel:MI = on                   ! no multiple interactions
+PartonLevel:ISR = on                  ! no initial-state radiation 
+PartonLevel:FSR = on                  ! no final-state radiation
+HadronLevel:Hadronize = on             ! hadronization
 
 ! Seed for the event generation
-Random:setSeed = on
-Radom:sed = 12345
+!Random:setSeed = on
+!Random:seed = 12345

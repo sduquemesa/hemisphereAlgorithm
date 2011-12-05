@@ -20,7 +20,7 @@
 using namespace Pythia8;
 
 double theta(double eta){
-  return 2*TMath::ATan( TMath::Exp(-1*eta) );
+  return 2*TMath::ATan( TMath::Exp(-1*eta) ) * 180/TMath::Pi();
 }
 
 double etaCalc(double theta){
@@ -30,29 +30,19 @@ double etaCalc(double theta){
 int main(int argc, char* argv[])
 {
   // Settings
-  int nEvents = 10000;
+  int nEvents = 1000;
+  Vec4 MET; // Missing ET 4-vector
 
   // Set up generation
   Pythia pythia; // Declare pythia object
   pythia.readFile("main0.cmnd"); // Read file of parameters
   pythia.init(); // Initialize with .cmnd file parameters
 
-  // Create the ROOT application environment. 
-  TApplication theApp("hist", &argc, argv);
-
-  // Create file on which histogram(s) can be saved.
-  //TFile* outFile = new TFile("lego.root", "RECREATE");
-
-  // Book histogram.
-  THStack *hs = new THStack("hs","");
-  TH2F *lego = new TH2F("lego","lego plot of dijet event", 50, -3.141593, 3.141593, 50, -3.141593, 3.141593);
-  TH2F *mET = new TH2F("mET","missing ET", 50, -3.141593, 3.141593, 50, -3.141593, 3.141593);
-
   // Fastjet analysis - select algorithm and parameters
   double Rparam = 0.5;
   fastjet::Strategy               strategy = fastjet::Best;
   fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
-  fastjet::JetDefinition         *jetDef = NULL;
+  fastjet::JetDefinition          *jetDef = NULL;
   jetDef = new fastjet::JetDefinition(fastjet::kt_algorithm, Rparam,
                                       recombScheme, strategy);
 
@@ -61,78 +51,57 @@ int main(int argc, char* argv[])
 
 
   for ( int iEvent = 0; iEvent < nEvents; iEvent++ ) { // Event loop
+
     if (!pythia.next()) continue;
-    if (iEvent == 0) pythia.event.list();  // Print first event
+    // if (iEvent == 0) pythia.event.list();  // Print first event
+    pythia.process.list();
+    getchar();
 
-    // Reset Fastjet input
-    fjInputs.resize(0);
+    fjInputs.resize(0); // Reset Fastjet input
+    
+    for ( int i = 0; i < pythia.event.size(); i++ ){ // Particle loop
 
-    // Reset Histogram input
-    lego->Reset();
-    mET->Reset();
+      if ( !pythia.event[i].isFinal() ) continue;      // Final state particles
 
-    // Keep track of missing ET
-    Vec4 MET;
+      // No neutrinos
+      if (pythia.event[i].idAbs() == 12 || pythia.event[i].idAbs() == 14 || pythia.event[i].idAbs() == 16) { MET += pythia.event[i].p(); continue; }
 
-   for ( int i = 0; i < pythia.event.size(); i++ ){ // Particle loop
+      // No neutralinos
+      if (pythia.event[i].idAbs() == 1000012 || pythia.event[i].idAbs() == 1000014 || pythia.event[i].idAbs() == 1000016) { MET += pythia.event[i].p(); continue; }
 
-     if (!pythia.event[i].isFinal()) continue;      // Final state particles
-
-     // No neutrinos
-     if (pythia.event[i].idAbs() == 12 || pythia.event[i].idAbs() == 14 || pythia.event[i].idAbs() == 16) {MET += pythia.event[i].p(); continue;}
-
-     // No neutralinos
-     if (pythia.event[i].idAbs() == 1000012 || pythia.event[i].idAbs() == 1000014 || pythia.event[i].idAbs() == 1000016) {MET += pythia.event[i].p(); continue;}
-
-     // No gravitinos
-     if ( pythia.event[i].id() == 1000039 ){MET+=pythia.event[i].p(); continue;}
+      // No gravitinos
+      if ( pythia.event[i].id() == 1000039 ){ MET+=pythia.event[i].p(); continue; }
 
       // Store as input to Fastjet
       fjInputs.push_back( fastjet::PseudoJet (pythia.event[i].px(), pythia.event[i].py(), pythia.event[i].pz(), pythia.event[i].e() ) );
     
-   } // End particle loop
+    } // End particle loop
 
-   // Run Fastjet algorithm 
-   vector <fastjet::PseudoJet> inclusiveJets, selectedJets, sortedJets;
-   fastjet::ClusterSequence clustSeq(fjInputs, *jetDef);
+    // Run Fastjet algorithm 
+    vector <fastjet::PseudoJet> jets;
+    fastjet::ClusterSequence clustSeq(fjInputs, *jetDef); // Run clustering
    
-   // For the first event, print the FastJet details
-   if (iEvent == 0) {
-     cout << "\nRan " << jetDef->description() << endl;
-     cout << "Strategy adopted by FastJet was " << clustSeq.strategy_string() << endl << endl;
-   }
+    // For the first event, print the FastJet details
+    if (iEvent == 0) {
+      cout << "\nRan " << jetDef->description() << endl << endl;
+      cout << "Strategy adopted by FastJet was " << clustSeq.strategy_string() << endl << endl;
+    }
 
-   // Extract dijets and unclustered particles
-   inclusiveJets = clustSeq.inclusive_jets();
-   fastjet::Selector select_pt = fastjet::SelectorPtMin(50.0);
-   selectedJets = select_pt(inclusiveJets);
-   selectedJets = sorted_by_pt(selectedJets);
+    // Extract jets
+    jets = clustSeq.inclusive_jets();
+  
+    // Apply cuts
+    fastjet::Selector select_ET = fastjet::SelectorEtMin(30.0);
+    fastjet::Selector select_eta = fastjet::SelectorEtaMax(3);
+    jets = select_ET(jets);
+    jets = select_eta(jets);
+    jets = sorted_by_E(jets);
+   
+    for (int i=0; i<jets.size();i++) cout << jets[i].perp() << endl;
 
-   if ( selectedJets.size() == 2 ){
-
-     if ( TMath::Abs( selectedJets[0].eta() ) > 2.5 ) continue;
-     
-     for ( unsigned int j = 0; j < selectedJets.size(); j++ ){
-       // Add inputs to lego plot
-       lego->Fill(selectedJets[j].phi_std(), theta(selectedJets[j].eta()), selectedJets[j].perp());
-     }
-
-     mET->Fill(MET.phi(), etaCalc(MET.theta()), MET.pT());
-     mET->SetFillColor(kWhite);
-     hs->Add(mET);
-
-     lego->SetFillColor(kRed);
-     lego->GetXaxis()->SetTitle("#phi");
-     lego->GetYaxis()->SetTitle("#theta");
-     lego->GetZaxis()->SetTitle("p_{T}");
-     hs->Add(lego);
-     lego->Draw("LEGO1");
-     gPad->WaitPrimitive();
-   } 
-
+    cout << jets.size() << endl;
+ 
   } // End event loop
-
-  //pythia.statistics(); // Get statistics of the program run
-
+  
   return 0; // End main program with error-free return
 }

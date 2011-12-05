@@ -10,6 +10,11 @@
 // Pythia
 #include "Pythia.h"
 
+// FastJet
+#include "fastjet/PseudoJet.hh"
+#include "fastjet/ClusterSequence.hh"
+#include "fastjet/Selector.hh"
+
 /*
 |eta| < 2.1
 pT > 8 GeV/c
@@ -41,7 +46,7 @@ bool isIsolated( Event &event, vector<int> index, double R ){
  
   double I_rel;
 
-  for ( int i = 0; i < index.size(); i++){
+  for ( unsigned int i = 0; i < index.size(); i++){
 
     I_rel = 0;
     
@@ -62,17 +67,17 @@ bool isIsolated( Event &event, vector<int> index, double R ){
 
 bool ZVeto( Event &event, vector<int> iMu, vector<int> iMup, vector<int> iE, vector<int> iEp, float minMass, float maxMass ){
 
-  for ( int i = 0; i < iMu.size(); i++ ){
-    for ( int j = 0; j < iMup.size(); j++ ){
+  for ( unsigned int i = 0; i < iMu.size(); i++ ){
+    for ( unsigned int j = 0; j < iMup.size(); j++ ){
       if ( m(event[iMu[i]], event[iMup[j]]) > minMass && m(event[iMu[i]], event[iMup[j]]) < maxMass ) return true;
       }
   }
-  for ( int i = 0; i < iE.size(); i++ ){
-    for ( int j = 0; j < iEp.size(); j++ ){
+  for ( unsigned int i = 0; i < iE.size(); i++ ){
+    for ( unsigned int j = 0; j < iEp.size(); j++ ){
       if ( m(event[iE[i]], event[iEp[j]]) > minMass && m(event[iE[i]], event[iEp[j]]) < maxMass ) return true;
       }
   }
-
+  return false;
 }
 
 int main(int argc, char * argv[])
@@ -98,6 +103,17 @@ int main(int argc, char * argv[])
   Hist pTmu("muon pT dist.", 100, 0, 300);
   Hist pTt("total pT dist.", 100, 0, 300);
  
+  // Fastjet analysis - select algorithm and parameters
+  double Rparam = 0.3;
+  fastjet::Strategy               strategy = fastjet::Best;
+  fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
+  fastjet::JetDefinition          *jetDef = NULL;
+  jetDef = new fastjet::JetDefinition(fastjet::kt_algorithm, Rparam,
+                                      recombScheme, strategy);
+
+  // Fastjet input
+  std::vector <fastjet::PseudoJet> fjInputs;
+
   // Set up generation
   Pythia pythia; // Declare pythia object
   pythia.readFile("main0.cmnd"); // Read file of parameters
@@ -109,17 +125,23 @@ int main(int argc, char * argv[])
     nEvents = atoi(argv[1]);
   else 
     nEvents = pythia.mode("Main:numberOfEvents");
-  int nList = pythia.mode("Main:numberToList");
-  int nShow = pythia.mode("Main:timesToShow");
+  // int nList = pythia.mode("Main:numberToList");
+  // int nShow = pythia.mode("Main:timesToShow");
   
   for ( int iEvent = 0; iEvent < nEvents; iEvent++ ) { // Event loop
     
     iE.clear();
     iMu.clear(); 
     iEp.clear();
-    iMup.clear(); 
+    iMup.clear();
+    fjInputs.clear();
     pTelectrons[0] = 0; pTelectrons[1] = 0; pTelectrons[2] = 0; 
     pTmuons[0] = 0; pTmuons[1] = 0; pTmuons[2] = 0;
+
+    // For the first event, print the FastJet details
+    if (iEvent == 0) {
+      cout << "\nRan " << jetDef->description() << endl << endl;
+    }
 
     if ( !pythia.next() ) continue;
     // if ( iEvent < nList ){ // Event listing
@@ -134,10 +156,10 @@ int main(int argc, char * argv[])
     
     for ( int i = 0; i < pythia.event.size(); ++i ){ // Particle loop
 
-      if ( pythia.event[i].id() == -13 ) {iMup.push_back(i); continue;} // Tag antimuons
-      if ( pythia.event[i].id() == -11 ) {iEp.push_back(i); continue;} // Tag positrons
-      if ( pythia.event[i].id() == 13 ) {iMu.push_back(i); continue;} // Tag muons
-      if ( pythia.event[i].id() == 11 ) {iE.push_back(i); continue;} // Tag electrons
+      if ( pythia.event[i].id() == -13 ) iMup.push_back(i); // Tag antimuons
+      if ( pythia.event[i].id() == -11 ) iEp.push_back(i); // Tag positrons
+      if ( pythia.event[i].id() == 13 ) iMu.push_back(i); // Tag muons
+      if ( pythia.event[i].id() == 11 ) iE.push_back(i); // Tag electrons
 
       if ( pythia.event[i].pT() < 8.0 ) continue; // pT >= 8 GeV/c
       if ( abs( pythia.event[i].eta() ) >= 2.1 ) continue; // |eta| < 2.1
@@ -163,57 +185,83 @@ int main(int argc, char * argv[])
 	if ( pythia.event[i].pT() > 10 ){ pTmuons[0] += 1; continue; }
       }
 
+      // Store as input to Fastjet
+      fjInputs.push_back( fastjet::PseudoJet (pythia.event[i].px(), pythia.event[i].py(), pythia.event[i].pz(), pythia.event[i].e() ) );
+
     }
 
     /* Z-veto */
-    if ( ZVeto(pythia.event,iMu, iMup, iE, iEp, 75., 105.) ) continue; // Check for OSSF leptons with invariante mass in [75,105] GeV/c
+    //if ( ZVeto(pythia.event,iMu, iMup, iE, iEp, 75., 105.) ) {cout<< "zveto"<<endl;continue;} // Check for OSSF leptons with invariante mass in [75,105] GeV/c
 
     cout << iMu.size() << " " << iE.size()<< endl;
-    /* === mu-mu trigger === */
-    if ( iMu.size() > 1 ) {
-     
-      cout << "mu-mu" << endl; getchar();
-      if ( pTmuons[1] < 1 ) continue; // at least one mu with pT > 15 GeV/c
-      if ( pTmuons[0] < 1 ) continue; // at least one mu with pT > 10 GeV/c
-      if ( !( isIsolated( pythia.event, iMu, 0.3 ) ) ) continue; // Check isolation of tagged muons (R<0.3)
-
-      for ( int i = 0; i < iMu.size(); i++ ) {pTmu.fill(pythia.event[iMu[i]].pT()); file << pythia.event[iMu[i]].pT() << endl;}
-    }
-
-    /* === e-e trigger === */
-    if ( iE.size() > 1 ) {
-      
-      cout << "e-e" << endl; getchar();    
-      if ( pTelectrons[1] < 1 ) continue; // at least one mu with pT > 20 GeV/c
-      if ( pTelectrons[0] < 1 ) continue; // at least one mu with pT > 10 GeV/c
-      if ( !( isIsolated( pythia.event, iMu, 0.3 ) ) ) continue; // Check isolation of tagged muons (R<0.3) 
-
-      for ( int i = 0; i < iE.size(); i++ ) {pTe.fill(pythia.event[iE[i]].pT()); file1 << pythia.event[iE[i]].pT() << endl;}
-    }
 
     /* === e-mu trigger === */
     if ( iE.size() > 0 && iMu.size() > 0 ) {
 
-      cout << "e-mu" << endl; getchar();
       if ( pTmuons[2] > 0 ) continue; // at least one mu with pT > 20 GeV/c
       if ( pTelectrons[0] > 0 ) continue; // at least one e with pT > 10 GeV/c
       if ( !( isIsolated( pythia.event, iE, 0.4 ) ) ) continue; // Check isolation of tagged electrons (R<0.4)
       if ( !( isIsolated( pythia.event, iMu, 0.3 ) ) ) continue; // Check isolation of tagged muons (R<0.3)
+      cout << "e-mu" << endl; getchar();
       
-      for ( int i = 0; i < iMu.size(); i++ ) {pTmu.fill(pythia.event[iMu[i]].pT()); file << pythia.event[iMu[i]].pT() << endl;}
-      for ( int i = 0; i < iE.size(); i++ ) {pTe.fill(pythia.event[iE[i]].pT()); file1 << pythia.event[iE[i]].pT() << endl;}
+      for ( unsigned int i = 0; i < iMu.size(); i++ ) {pTmu.fill(pythia.event[iMu[i]].pT()); file << pythia.event[iMu[i]].pT() << endl;}
+      for ( unsigned int i = 0; i < iE.size(); i++ ) {pTe.fill(pythia.event[iE[i]].pT()); file1 << pythia.event[iE[i]].pT() << endl;}
+      goto jets;
+    }
+
+    /* === e-e trigger === */
+    if ( iE.size() > 1 ) {
+         
+      if ( pTelectrons[1] < 1 ) continue; // at least one mu with pT > 20 GeV/c
+      if ( pTelectrons[0] < 1 ) continue; // at least one mu with pT > 10 GeV/c
+      if ( !( isIsolated( pythia.event, iMu, 0.3 ) ) ) continue; // Check isolation of tagged muons (R<0.3) 
+      cout << "e-e" << endl; getchar(); 
+
+      for ( unsigned int i = 0; i < iE.size(); i++ ) {pTe.fill(pythia.event[iE[i]].pT()); file1 << pythia.event[iE[i]].pT() << endl;}
+      goto jets;
+    }
+
+    /* === mu-mu trigger === */
+    if ( iMu.size() > 1 ) {
+     
+      if ( pTmuons[1] < 1 ) continue; // at least one mu with pT > 15 GeV/c
+      if ( pTmuons[0] < 1 ) continue; // at least one mu with pT > 10 GeV/c
+      if ( !( isIsolated( pythia.event, iMu, 0.3 ) ) ) continue; // Check isolation of tagged muons (R<0.3)
+      cout << "mu-mu" << endl; getchar();
+
+      for ( unsigned int i = 0; i < iMu.size(); i++ ) {pTmu.fill(pythia.event[iMu[i]].pT()); file << pythia.event[iMu[i]].pT() << endl;}
+      goto jets;
     }
 
     /* === single lepton trigger === */
     if ( iE.size() == 1 && iMu.size() == 0 ){ // Single electron
       if ( pTelectrons[2] < 1 ) continue;
-      cout << "single e" << endl; getchar();
+      // cout << "single e" << endl; getchar();
+      goto jets;
     }
     if ( iMu.size() == 1 && iE.size() == 0 ){ // Single muon
       if ( pTelectrons[2] < 1 ) continue;
-      cout << "single mu" << endl; getchar();
+      // cout << "single mu" << endl; getchar();
+      goto jets;
     }
     
+  jets:
+
+    // Run Fastjet algorithm 
+    vector <fastjet::PseudoJet> jets;
+    fastjet::ClusterSequence clustSeq(fjInputs, *jetDef); // Run clustering
+
+    // Extract jets
+    jets = clustSeq.inclusive_jets();
+  
+    // Apply cuts
+    fastjet::Selector select_ET = fastjet::SelectorEtMin(40.0);
+    fastjet::Selector select_eta = fastjet::SelectorEtaMax(2.5);
+    jets = select_ET(jets);
+    jets = select_eta(jets);
+    jets = sorted_by_E(jets);
+
+    cout << jets.size() << endl; getchar();
 
   } // End event loop
 

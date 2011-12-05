@@ -19,9 +19,9 @@ SUSY:all = on			      ! Switches on ALL (~400) SUSY processes
 
 ! Settings for the event generation process in the Pythia8 library.
 PartonLevel:MI = off                   ! no multiple interactions
-PartonLevel:ISR = off                  ! no initial-state radiation 
-PartonLevel:FSR = off                  ! no final-state radiation
-HadronLevel:Hadronize = off             ! hadronization
+PartonLevel:ISR = on                  ! no initial-state radiation 
+PartonLevel:FSR = on                  ! no final-state radiation
+HadronLevel:Hadronize = on             ! hadronization
 
 ! Seed for the event generation
 Random:setSeed = on
